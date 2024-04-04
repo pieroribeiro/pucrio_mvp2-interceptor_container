@@ -1,0 +1,58 @@
+networks:
+  puc_mvp:
+    driver: bridge 
+
+services:
+  database:
+    container_name: database_container
+    hostname: database_host
+    build: ./database_container
+    networks:
+      - puc_mvp
+    volumes:
+      - mysql_data:/bitnami/mysql/data
+    healthcheck:
+      test: mysql $$MYSQL_DATABASE -u$$MYSQL_USER -p$$MYSQL_PASSWORD -e 'SELECT 1;'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  
+  interceptor:
+    container_name: interceptor_container
+    hostname: interceptor_host
+    build: ./interceptor_container
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    networks:
+      - puc_mvp
+
+  loader:
+    container_name: loader_container
+    hostname: loader_host
+    build: ./loader_container
+    networks:
+      - puc_mvp
+
+  api:
+    container_name: api_container
+    hostname: api_host
+    build: ./api_container
+    networks:
+      - puc_mvp
+    ports:
+      - "3002:3002"
+
+  frontend:
+    container_name: frontend_container
+    hostname: frontend_host
+    build: ./frontend_container
+    networks:
+      - puc_mvp
+    ports:
+      - "3003:3003"
+
+volumes:
+  mysql_data:

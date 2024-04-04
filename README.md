@@ -1,1 +1,5 @@
-# pucrio_mvp2-interceptor_container
+Link Swagger: [link](http://localhost:3001/apidocs/#/)
+
+EXTERNALS APIs:
+[Awesome API](https://docs.awesomeapi.com.br/)
+[News API](https://newsapi.org/)
