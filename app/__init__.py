@@ -78,6 +78,8 @@ def get_cotacoes():
                     type: string
                 value: 
                     type: number
+                variation: 
+                    type: number
                 type:
                     type: string
                 created_at:
@@ -91,6 +93,8 @@ def get_cotacoes():
                 name: 
                     type: string
                 value: 
+                    type: number
+                variation: 
                     type: number
                 type:
                     type: string
@@ -140,18 +144,19 @@ def get_cotacoes():
     try: 
         conn, cursor = connect_to_database()
         if conn.is_connected():
-            cursor.execute("DELETE FROM cotacoes WHERE DATE(created_at) < (NOW() - INTERVAL 2 DAY)")
+            cursor.execute("DELETE FROM cotacoes WHERE DATE(created_at) < (NOW() - INTERVAL 1 DAY)")
             conn.commit()
 
-            cursor.execute(f"SELECT id, symbol, name, value, type, created_at FROM cotacoes ORDER BY created_at DESC LIMIT 1000")
+            cursor.execute(f"SELECT id, symbol, name, value, variation, type, created_at FROM cotacoes ORDER BY created_at DESC LIMIT 1000")
             records = cursor.fetchall()
             results = []
-            for (id, symbol, name, value, type, created_at) in records:
+            for (id, symbol, name, value, variation, type, created_at) in records:
                 results.append({
                     "id": id,
                     "symbol": symbol,
                     "name": name,
                     "value": float(value),
+                    "variation": float(variation),
                     "type": type,
                     "created_at": convertDatetime(created_at)
                 })
@@ -198,18 +203,19 @@ def get_cotacoes_by_symbol(symbol):
     try:
         conn, cursor = connect_to_database()
         if conn.is_connected():
-            cursor.execute("DELETE FROM cotacoes WHERE DATE(created_at) < (NOW() - INTERVAL 2 DAY)")
+            cursor.execute("DELETE FROM cotacoes WHERE DATE(created_at) < (NOW() - INTERVAL 1 DAY)")
             conn.commit()
 
-            cursor.execute("SELECT id, symbol, name, value, type, created_at FROM cotacoes WHERE symbol = %s ORDER BY created_at ASC LIMIT 20", (symbol,))
+            cursor.execute("SELECT id, symbol, name, value, variation, type, created_at FROM cotacoes WHERE symbol = %s ORDER BY created_at ASC LIMIT 20", (symbol,))
             records = cursor.fetchall()
             results = []
-            for (id, symbol, name, value, type, created_at) in records:
+            for (id, symbol, name, value, variation, type, created_at) in records:
                 results.append({
                     "id": id,
                     "symbol": symbol,
                     "name": name,
                     "value": float(value),
+                    "variation": float(variation),
                     "type": type,
                     "created_at": convertDatetime(created_at)
                 })
@@ -255,10 +261,10 @@ def get_cotacoes_by_id(id):
     try:
         conn, cursor = connect_to_database()
         if conn.is_connected():
-            cursor.execute("DELETE FROM cotacoes WHERE DATE(created_at) < (NOW() - INTERVAL 2 DAY)")
+            cursor.execute("DELETE FROM cotacoes WHERE DATE(created_at) < (NOW() - INTERVAL 1 DAY)")
             conn.commit()
 
-            cursor.execute("SELECT id, symbol, name, value, type, created_at FROM cotacoes WHERE id = %s LIMIT 1", (id,))
+            cursor.execute("SELECT id, symbol, name, value, variation, type, created_at FROM cotacoes WHERE id = %s LIMIT 1", (id,))
             record = cursor.fetchone()
             if record:
                 result = {
@@ -266,8 +272,9 @@ def get_cotacoes_by_id(id):
                     "symbol": record[1],
                     "name": record[2],
                     "value": float(record[3]),
-                    "type": record[4],
-                    "created_at": convertDatetime(record[5])
+                    "variation": float(record[4]),
+                    "type": record[5],
+                    "created_at": convertDatetime(record[6])
                 }
             else:
                 result = {}
@@ -319,12 +326,13 @@ def create_cotacao():
             symbol = data['symbol']
             name = data['name']
             value = float(data['value'])
+            variation = float(data['variation'])
             type = data['type']
             
-            cursor.execute("DELETE FROM cotacoes WHERE DATE(created_at) < (NOW() - INTERVAL 2 DAY)")
+            cursor.execute("DELETE FROM cotacoes WHERE DATE(created_at) < (NOW() - INTERVAL 1 DAY)")
             conn.commit()
 
-            cursor.execute("INSERT INTO cotacoes (symbol, name, value, type) VALUES (%s, %s, %s, %s)", (symbol, name, value, type))
+            cursor.execute("INSERT INTO cotacoes (symbol, name, value, variation, type) VALUES (%s, %s, %s, %s, %s)", (symbol, name, value, variation, type))
             conn.commit()
 
             recordId = cursor.lastrowid
@@ -380,13 +388,14 @@ def update_cotacao(id):
             symbol = data['symbol']
             name = data['name']
             value = data['value']
+            variation = data['variation']
             type = data['type']
 
             cursor.execute("SELECT id, symbol, name, value, type, created_at FROM cotacoes WHERE id = %s LIMIT 1", (id,))
             actual_record = cursor.fetchone()
             status_message = 'NOT_FOUND'
             if actual_record:
-                cursor.execute("UPDATE cotacoes SET symbol = %s, name = %s, value = %s, type = %s WHERE id = %s LIMIT 1", (symbol, name, value, type, id))
+                cursor.execute("UPDATE cotacoes SET symbol = %s, name = %s, value = %s, variation = %s, type = %s WHERE id = %s LIMIT 1", (symbol, name, value, variation, type, id))
                 conn.commit()
                 cursor.execute("SELECT id, symbol, name, value, type, created_at FROM cotacoes WHERE id = %s LIMIT 1", (id,))
                 new_record = cursor.fetchone()
@@ -433,7 +442,7 @@ def delete_cotacao(id):
     try:
         conn, cursor = connect_to_database()
         if conn.is_connected():
-            cursor.execute("SELECT id, symbol, name, value, type, created_at FROM cotacoes WHERE id = %s LIMIT 1", (id,))
+            cursor.execute("SELECT NULL FROM cotacoes WHERE id = %s LIMIT 1", (id,))
             record = cursor.fetchone()
             status_message = 'NOT_FOUND'
             if record:
@@ -525,6 +534,19 @@ def get_news():
             properties:
                 results: 
                     type: string
+                status:
+                    type: string
+                message:
+                    type: string
+
+        NoticiasErrorAlreadyExists:
+            type: object
+            properties:
+                results: 
+                    type: object
+                    properties:
+                        id:
+                            type: integer
                 status:
                     type: string
                 message:
@@ -651,6 +673,10 @@ def create_news():
             description: OK
             schema:
                 $ref: '#/definitions/NoticiaReturnUnique'
+        409: 
+            description: Registro já existe
+            schema:
+                $ref: '#/definitions/NoticiasErrorAlreadyExists'            
         500:
             description: Ocorreu um erro
             schema:
@@ -670,25 +696,30 @@ def create_news():
             else:
                 published_at_obj = datetime.now()
             
-            cursor.execute("DELETE FROM news WHERE DATE(created_at) < (NOW() - INTERVAL 2 DAY)")
-            conn.commit()
+            cursor.execute("SELECT id FROM news WHERE url = %s LIMIT 1", (url,))
+            existsRecord = cursor.fetchone()
+            if existsRecord:
+                return jsonify({"results": {"id": existsRecord[0]}, "status": "ERROR", "message": "Record already exists"}), 409
+            else:
 
-            cursor.execute("INSERT INTO news (title, url, media, published_at) VALUES (%s, %s, %s, %s)", (title, url, media, published_at_obj))
-            conn.commit()
+                cursor.execute("DELETE FROM news WHERE DATE(created_at) < (NOW() - INTERVAL 1 DAY)")
+                conn.commit()
 
-            recordId = cursor.lastrowid
+                cursor.execute("INSERT INTO news (title, url, media, published_at) VALUES (%s, %s, %s, %s)", (title, url, media, published_at_obj))
+                conn.commit()
+                recordId = cursor.lastrowid
 
-            cursor.close()
-            conn.close()
+                cursor.close()
+                conn.close()
 
-            return jsonify({'status': 'CREATED', 'id': recordId}), 201
+                return jsonify({"results": {"id": recordId}, "status": "CREATED", "message": None}), 201
         else:
 
             cursor.close()
             conn.close()
-            return jsonify({"status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
     except Exception as e:
-        return jsonify({"status": "ERROR", "message": f"Error create_news: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error create_news: {str(e)}"}), 500
 
 
 # Endpoint PUT: Atualiza uma notícia existente
@@ -745,17 +776,19 @@ def update_news(id):
                 cursor.execute("SELECT id, title, url, media, published_at, created_at FROM news WHERE id = %s LIMIT 1", (id,))
                 new_record = cursor.fetchone()
                 status_message = "UPDATED"
+            else:
+                new_record = {}
 
             cursor.close()
             conn.close()
-            return jsonify({"status": status_message, "id": id, "new-record": {"id": new_record[0], "title": new_record[1], "url": new_record[2], "media": new_record[3], "published_at": new_record[4], "created_at": new_record[5]}}), 200
+            return jsonify({"results": new_record, "status": status_message, "message": None}), 200
         else:
 
             cursor.close()
             conn.close()
-            return jsonify({"status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500  
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500  
     except Exception as e:
-        return jsonify({"status": "ERROR", "message": f"Error update_news: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error update_news: {str(e)}"}), 500
 
 
 # Endpoint DELETE: Deleta um item existente
@@ -795,14 +828,14 @@ def delete_news(id):
 
             cursor.close()
             conn.close()
-            return jsonify({"status": status_message, "id": id}), 200
+            return jsonify({"results": {"id": id}, "status": status_message, "message": None}), 200
         else:
 
             cursor.close()
             conn.close()
-            return jsonify({"status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
     except Exception as e:
-        return jsonify({"status": "ERROR", "message": f"Error delete_news: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error delete_news: {str(e)}"}), 500
     
 
 
@@ -925,14 +958,14 @@ def get_apis():
             cursor.close()
             conn.close()
 
-            return jsonify({'results': results, "status": "OK", "message": None}), 200
+            return jsonify({"results": results, "status": "OK", "message": None}), 200
         else:
 
             cursor.close()
             conn.close()
-            return jsonify({"status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
     except Exception as e:
-        return jsonify({"status": "ERROR", "message": f"Error get_apis: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error get_apis: {str(e)}"}), 500
 
 
 # Endpoint GET: Retorna uma api específica pelo SYMBOL
@@ -983,14 +1016,14 @@ def get_api_by_symbol(symbol):
             cursor.close()
             conn.close()
 
-            return jsonify({'results': result, "status": "OK", "message": None}), 200
+            return jsonify({"results": result, "status": "OK", "message": None}), 200
         else:
 
             cursor.close()
             conn.close()
-            return jsonify({"status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
     except Exception as e:
-        return jsonify({"status": "ERROR", "message": f"Error get_api_by_symbol: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error get_api_by_symbol: {str(e)}"}), 500
 
 
 # Endpoint GET: Retorna uma api específica pelo ID
@@ -1035,19 +1068,19 @@ def get_api_by_id(id):
                     "created_at": convertDatetime(record[7])
                 }
             else:
-                result: {}
+                result = {}
 
             cursor.close()
             conn.close()
 
-            return jsonify({'results': result, "status": "OK", "message": None}), 200
+            return jsonify({"results": result, "status": "OK", "message": None}), 200
         else:
 
             cursor.close()
             conn.close()
-            return jsonify({"status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
     except Exception as e:
-        return jsonify({"status": "ERROR", "message": f"Error get_api_by_id: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error get_api_by_id: {str(e)}"}), 500
 
 
 # Endpoint POST: Cria uma nova api
@@ -1088,7 +1121,7 @@ def create_api():
             active = data['active']
             load_symbols = data['load_symbols']
 
-            cursor.execute("INSERT INTO apis (name, symbol, url, api_key, load_symbols, active) VALUES (%s, %s, %s, %s)", (name, symbol, url, api_key, load_symbols, active))
+            cursor.execute("INSERT INTO apis (name, symbol, url, api_key, load_symbols, active) VALUES (%s, %s, %s, %s, %s, %s)", (name, symbol, url, api_key, load_symbols, active))
             conn.commit()
 
             recordId = cursor.lastrowid
@@ -1096,14 +1129,14 @@ def create_api():
             cursor.close()
             conn.close()
 
-            return jsonify({'id': recordId, "status": "CREATED", "message": None}), 201
+            return jsonify({"results": {"id": recordId}, "status": "CREATED", "message": None}), 201
         else:
 
             cursor.close()
             conn.close()
-            return jsonify({"status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
     except Exception as e:
-        return jsonify({"status": "ERROR", "message": f"Error create_api: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error create_api: {str(e)}"}), 500
 
 
 # Endpoint PUT: Atualiza uma api existente
@@ -1164,15 +1197,15 @@ def update_api(id):
             conn.close()
 
             if len(new_record) > 0:
-                return jsonify({"status": status_message, "message": None, "id": id, "new-record": {"id": new_record[0], "name": new_record[1], "symbol": new_record[2], "url": new_record[3], "api_key": new_record[4], "load_symbols": new_record[5], "active": new_record[6], "created_at": new_record[7]}}), 200
+                return jsonify({"results": new_record, "status": status_message, "message": None}), 200
             else:
-                return jsonify({"status": status_message, "message": None, "id": id, "new-record": {}}), 404
+                return jsonify({"results": None, "status": status_message, "message": None, "id": id, "new-record": {}}), 404
         else:
             cursor.close()
             conn.close()
-            return jsonify({"status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500  
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500  
     except Exception as e:
-        return jsonify({"status": "ERROR", "message": f"Error update_api: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error update_api: {str(e)}"}), 500
 
 
 # Endpoint DELETE: Deleta uma api existente
@@ -1212,14 +1245,14 @@ def delete_api(id):
 
             cursor.close()
             conn.close()
-            return jsonify({"id": id, "status": status_message, "message": None}), 200
+            return jsonify({"results": {"id": id}, "status": status_message, "message": None}), 200
         else:
 
             cursor.close()
             conn.close()
-            return jsonify({"id": 0, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
+            return jsonify({"results": None, "status": "ERROR", "message": "Conexão ao MySQL não estabelecida"}), 500
     except Exception as e:
-        return jsonify({"id": 0, "status": "ERROR", "message": f"Error delete_api: {str(e)}"}), 500
+        return jsonify({"results": None, "status": "ERROR", "message": f"Error delete_api: {str(e)}"}), 500
 
 
 if __name__ == '__main__':
